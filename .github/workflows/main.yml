@@ -12,32 +12,32 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          submodules: recursive
 
-      - name: Build Archive (Unsigned)
+      - name: Install Dependencies
         run: |
-          xcodebuild archive \
-            -workspace YourProject.xcworkspace \
-            -scheme YourScheme \
-            -configuration Release \
-            -archivePath build/YourApp.xcarchive \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+          brew install cmake ninja
 
-      - name: Create IPA Structure
+      - name: Configure and Build (iOS)
+        run: |
+          mkdir build && cd build
+          cmake -G Ninja .. \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT=iphoneos \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_BUILD_TYPE=Release
+          ninja
+
+      - name: Package IPA
         run: |
           mkdir -p build/Payload
-          cp -r build/YourApp.xcarchive/Products/Applications/*.app build/Payload/
+          find build -name "*.app" -exec cp -r {} build/Payload/ \;
           cd build
-          zip -r YourApp-unsigned.ipa Payload
+          zip -r Madeira-unsigned.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Unsigned-IPA
-          path: build/YourApp-unsigned.ipa
+          path: build/Madeira-unsigned.ipa
