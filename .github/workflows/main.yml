@@ -15,28 +15,27 @@ jobs:
         with:
           submodules: recursive
 
-      - name: List Directory Contents
+      - name: Find Xcode Project and Build
         run: |
-          echo "=== Root Folder Contents ==="
-          ls -la
-          echo "=== App Folder Contents ==="
-          ls -la app || true
-
-      - name: Build Unsigned App
-        run: |
-          xcodebuild build \
-            -alltargets \
-            -sdk iphoneos \
-            -configuration Release \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            BUILD_DIR=build
+          PROJ_PATH=$(find . -name "*.xcodeproj" -o -name "*.xcworkspace" | head -n 1)
+          if [ -z "$PROJ_PATH" ]; then
+            echo "Xcode project not found, searching for CMake..."
+            CPROJECT=$(find . -name "CMakeLists.txt" | head -n 1)
+            CPROJECT_DIR=$(dirname "$CPROJECT")
+            mkdir -p build_dir && cd build_dir
+            cmake -G Ninja "$CPROJECT_DIR" -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64
+            ninja
+          else
+            echo "Found project at: $PROJ_PATH"
+            PROJ_DIR=$(dirname "$PROJ_PATH")
+            cd "$PROJ_DIR"
+            xcodebuild build -alltargets -sdk iphoneos -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO BUILD_DIR=build
+          fi
 
       - name: Package IPA
         run: |
           mkdir -p Payload
-          find build -name "*.app" -exec cp -r {} Payload/ \;
+          find . -name "*.app" -exec cp -r {} Payload/ \;
           zip -r Madeira-unsigned.ipa Payload
 
       - name: Upload IPA Artifact
