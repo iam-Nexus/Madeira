@@ -15,29 +15,32 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Dependencies
+      - name: List Directory Contents
         run: |
-          brew install cmake ninja
+          echo "=== Root Folder Contents ==="
+          ls -la
+          echo "=== App Folder Contents ==="
+          ls -la app || true
 
-      - name: Configure and Build (iOS)
+      - name: Build Unsigned App
         run: |
-          mkdir build && cd build
-          cmake -G Ninja .. \
-            -DCMAKE_SYSTEM_NAME=iOS \
-            -DCMAKE_OSX_SYSROOT=iphoneos \
-            -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_BUILD_TYPE=Release
-          ninja
+          xcodebuild build \
+            -alltargets \
+            -sdk iphoneos \
+            -configuration Release \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            BUILD_DIR=build
 
       - name: Package IPA
         run: |
-          mkdir -p build/Payload
-          find build -name "*.app" -exec cp -r {} build/Payload/ \;
-          cd build
+          mkdir -p Payload
+          find build -name "*.app" -exec cp -r {} Payload/ \;
           zip -r Madeira-unsigned.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Unsigned-IPA
-          path: build/Madeira-unsigned.ipa
+          path: Madeira-unsigned.ipa
